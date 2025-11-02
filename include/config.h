@@ -10,18 +10,25 @@
 #define SCAN_INTERVAL 3000        // Time between scans (ms)
 #define MAX_NETWORKS 20           // Maximum networks to display
 
-// Evil Twin Settings
-#define EVIL_TWIN_CHANNEL 1       // WiFi channel (1-13)
-#define MAX_CLIENTS 4             // Maximum connected clients
-#define AP_HIDDEN false           // Hide SSID? (false = visible)
+// Control AP Settings (ESP32's own WiFi for remote access)
+#define CONTROL_AP_SSID "ESP32-Control"    // Your control AP name
+#define CONTROL_AP_PASSWORD "12345678"     // Password (min 8 chars)
+#define CONTROL_AP_CHANNEL 6               // Channel for control AP
+#define CONTROL_AP_HIDDEN false            // Hide SSID?
+#define CONTROL_AP_MAX_CONN 2              // Max connections
+
+// WebSocket Server Settings (Secure remote access)
+#define WEBSOCKET_PORT 81                  // WebSocket port
+#define ENABLE_WEBSOCKET true              // Enable WebSocket server
+#define WS_TIMEOUT 300000                  // Timeout after 5 min idle (ms)
 
 // Target Network (will be selected from scan - no need to hardcode)
 // You'll choose the target network interactively from the menu
 
-// Captive Portal Settings
-#define DNS_PORT 53
-#define HTTP_PORT 80
-#define CAPTIVE_PORTAL_DOMAIN "login.com"
+// Evil Twin Settings (when launching attack)
+#define EVIL_TWIN_CHANNEL 1       // WiFi channel (1-13)
+#define MAX_CLIENTS 4             // Maximum connected clients
+#define AP_HIDDEN false           // Hide SSID? (false = visible)
 
 // Web Cloner Settings
 #define CLONE_TIMEOUT 10000       // HTTP request timeout (ms)
