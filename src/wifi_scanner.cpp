@@ -1,19 +1,32 @@
 #include "wifi_scanner.h"
 #include "config.h"
+#include "esp_wifi.h"
 
 WiFiScanner::WiFiScanner() {
     networkCount = 0;
+    scanInProgress = false;
 }
 
-int WiFiScanner::scanNetworks() {
-    Serial.println("\n[*] Scanning for WiFi networks...");
+int WiFiScanner::scanNetworks(bool async) {
+    if (async) {
+        startAsyncScan();
+        return -1; // Scan in progress
+    }
     
-    // Disconnect if connected
-    WiFi.disconnect();
-    WiFi.mode(WIFI_STA);
+    Serial.println("\n[*] Scanning for WiFi networks (blocking mode)...");
     
-    // Scan for networks
-    networkCount = WiFi.scanNetworks();
+    // Configure scan parameters for minimal AP disruption
+    wifi_scan_config_t scanConf;
+    scanConf.ssid = NULL;
+    scanConf.bssid = NULL;
+    scanConf.channel = 0;  // Scan all channels
+    scanConf.show_hidden = SCAN_SHOW_HIDDEN;
+    scanConf.scan_type = SCAN_TYPE_ACTIVE ? WIFI_SCAN_TYPE_ACTIVE : WIFI_SCAN_TYPE_PASSIVE;
+    scanConf.scan_time.active.min = SCAN_CHANNEL_TIME;
+    scanConf.scan_time.active.max = SCAN_CHANNEL_TIME;
+    
+    // Perform scan
+    networkCount = WiFi.scanNetworks(false, SCAN_SHOW_HIDDEN, false, SCAN_CHANNEL_TIME);
     
     if (networkCount == 0) {
         Serial.println("[-] No networks found");
@@ -23,6 +36,58 @@ int WiFiScanner::scanNetworks() {
     Serial.printf("[+] Found %d networks\n", networkCount);
     
     // Store network information
+    storeScanResults();
+    
+    return networkCount;
+}
+
+void WiFiScanner::startAsyncScan() {
+    Serial.println("\n[*] Starting async WiFi scan...");
+    scanInProgress = true;
+    
+    // Start async scan with optimized channel time
+    WiFi.scanNetworks(true, SCAN_SHOW_HIDDEN, false, SCAN_CHANNEL_TIME);
+}
+
+bool WiFiScanner::isScanComplete() {
+    if (!scanInProgress) return false;
+    
+    int result = WiFi.scanComplete();
+    
+    if (result >= 0) {
+        // Scan complete
+        scanInProgress = false;
+        return true;
+    } else if (result == WIFI_SCAN_FAILED) {
+        Serial.println("[-] Scan failed");
+        scanInProgress = false;
+        return true;
+    }
+    
+    // Still scanning
+    return false;
+}
+
+int WiFiScanner::getScanResults() {
+    int result = WiFi.scanComplete();
+    
+    if (result >= 0) {
+        networkCount = result;
+        Serial.printf("[+] Async scan complete: Found %d networks\n", networkCount);
+        
+        // Store network information
+        storeScanResults();
+        
+        // Delete scan result from memory
+        WiFi.scanDelete();
+        
+        return networkCount;
+    }
+    
+    return 0;
+}
+
+void WiFiScanner::storeScanResults() {
     for (int i = 0; i < networkCount && i < MAX_NETWORKS; i++) {
         networks[i].ssid = WiFi.SSID(i);
         networks[i].rssi = WiFi.RSSI(i);
@@ -31,8 +96,6 @@ int WiFiScanner::scanNetworks() {
         networks[i].bssid = WiFi.BSSID(i);
         networks[i].hasPassword = (networks[i].encryption != WIFI_AUTH_OPEN);
     }
-    
-    return networkCount;
 }
 
 NetworkInfo WiFiScanner::getNetwork(int index) {
@@ -141,4 +204,54 @@ bool WiFiScanner::likelyHasCaptivePortal(int index) {
     }
     
     return false;
+}
+
+String WiFiScanner::getFormattedResults() {
+    String output = "";
+    
+    output += "\n╔════════════════════════════════════════════════════════════╗\n";
+    output += "║                   Available Networks                      ║\n";
+    output += "╠════╦══════════════════════╦═════╦═══════╦═════════╦════════╣\n";
+    output += "║ #  ║ SSID                ║ Ch  ║ RSSI  ║ Encrypt ║ Signal ║\n";
+    output += "╠════╬══════════════════════╬═════╬═══════╬═════════╬════════╣\n";
+    
+    for (int i = 0; i < networkCount && i < MAX_NETWORKS; i++) {
+        String ssidDisplay = networks[i].ssid;
+        if (ssidDisplay.length() > 20) {
+            ssidDisplay = ssidDisplay.substring(0, 17) + "...";
+        }
+        
+        char line[200];
+        sprintf(line, "║ %-2d ║ %-20s║ %-3d ║ %-5d ║ %-7s ║ %-6s ║\n",
+                i + 1,
+                ssidDisplay.c_str(),
+                networks[i].channel,
+                networks[i].rssi,
+                getEncryptionType(networks[i].encryption).c_str(),
+                getSignalStrength(networks[i].rssi).c_str()
+        );
+        output += line;
+    }
+    
+    output += "╚════╩══════════════════════╩═════╩═══════╩═════════╩════════╝\n";
+    
+    // Show networks with likely captive portals
+    output += "\n[*] Networks likely to have captive portals:\n";
+    bool foundPortal = false;
+    for (int i = 0; i < networkCount; i++) {
+        if (likelyHasCaptivePortal(i)) {
+            char portalLine[150];
+            sprintf(portalLine, "    - %s (Channel: %d, RSSI: %d)\n",
+                    networks[i].ssid.c_str(),
+                    networks[i].channel,
+                    networks[i].rssi);
+            output += portalLine;
+            foundPortal = true;
+        }
+    }
+    if (!foundPortal) {
+        output += "    - None detected\n";
+    }
+    
+    return output;
 }

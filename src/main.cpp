@@ -137,7 +137,7 @@ void setupControlAP() {
     out.printf("║ WebSocket:     ws://%-38s ║\n", (IP.toString() + ":" + String(WEBSOCKET_PORT)).c_str());
     out.println("╠══════════════════════════════════════════════════════════════╣");
     out.println("║ How to connect:                                              ║");
-    out.printf(" ║ 1. Connect to WiFi: %s                         ║\n", CONTROL_AP_SSID);
+    out.printf("║ 1. Connect to WiFi: %s                         ║\n", CONTROL_AP_SSID);
     out.println("║ 2. Open the HTML terminal client in your browser            ║");
     out.println("║ 3. Enter WebSocket URL and click Connect                    ║");
     out.println("╚══════════════════════════════════════════════════════════════╝\n");
@@ -147,12 +147,12 @@ void printBanner() {
     out.println("\n\n");
     out.println("╔══════════════════════════════════════════════════════════════╗");
     out.println("║                                                              ║");
-    out.println("║                     ESP32 WiFi EvilTwin                      ║");
+    out.println("║              ESP32 WiFi Security Research Tool               ║");
     out.println("║                                                              ║");
-    out.println("║                  ⚠️ EDUCATIONAL USE ONLY ⚠️                  ║");
+    out.println("║                    ⚠️  EDUCATIONAL USE ONLY ⚠️                ║");
     out.println("║                                                              ║");
-    out.println("║           Saya tidak bertanggung jawab jika digunakan        ║");
-    out.println("║                    untuk keuntungan pribadi                  ║");
+    out.println("║   Only use on networks you own or have permission to test   ║");
+    out.println("║                                                              ║");
     out.println("╚══════════════════════════════════════════════════════════════╝");
     out.println("");
 }
@@ -162,10 +162,10 @@ void printMenu() {
     out.println("║                        MAIN MENU                             ║");
     out.println("╠══════════════════════════════════════════════════════════════╣");
     out.println("║                                                              ║");
-    out.println("║  [1] Scan WiFi Networks (Only work using serial connection)  ║");
-    out.println("║  [2] Clone Captive Portal (Coming Soon)                      ║");
-    out.println("║  [3] Start Evil Twin AP (Coming Soon)                        ║");
-    out.println("║  [4] View Captured Credentials (Coming Soon)                 ║");
+    out.println("║  [1] Scan WiFi Networks                                      ║");
+    out.println("║  [2] Clone Captive Portal (Coming Soon)                     ║");
+    out.println("║  [3] Start Evil Twin AP (Coming Soon)                       ║");
+    out.println("║  [4] View Captured Credentials (Coming Soon)                ║");
     out.println("║  [5] System Information                                      ║");
     out.println("║  [6] Network Information                                     ║");
     out.println("║  [h] Help / Show Menu                                        ║");
@@ -255,13 +255,16 @@ void handleCommand(String cmd) {
 void scanMode() {
     out.println("[*] Entering WiFi Scanner Mode");
     if (ENABLE_LED) blinkLED(3, 200);
-    
+
     bool scanning = true;
-    
+    int scanCycle = 0;
+
     while (scanning) {
+        out.printf("\n[Cycle %d/%d] Starting WiFi scan...\n", scanCycle + 1, MAX_SCAN_CYCLES);
+
         // Perform scan
         int count = scanner.scanNetworks();
-        
+
         if (count > 0) {
             // Print to output
             out.println("\n╔════════════════════════════════════════════════════════════╗");
@@ -269,14 +272,14 @@ void scanMode() {
             out.println("╠════╦══════════════════════╦═════╦═══════╦═════════╦════════╣");
             out.println("║ #  ║ SSID                ║ Ch  ║ RSSI  ║ Encrypt ║ Signal ║");
             out.println("╠════╬══════════════════════╬═════╬═══════╬═════════╬════════╣");
-            
+
             for (int i = 0; i < count && i < MAX_NETWORKS; i++) {
                 NetworkInfo net = scanner.getNetwork(i);
                 String ssidDisplay = net.ssid;
                 if (ssidDisplay.length() > 20) {
                     ssidDisplay = ssidDisplay.substring(0, 17) + "...";
                 }
-                
+
                 out.printf("║ %-2d ║ %-20s║ %-3d ║ %-5d ║ %-7s ║ %-6s ║\n",
                         i + 1,
                         ssidDisplay.c_str(),
@@ -286,9 +289,9 @@ void scanMode() {
                         scanner.getSignalStrength(net.rssi).c_str()
                 );
             }
-            
+
             out.println("╚════╩══════════════════════╩═════╩═══════╩═════════╩════════╝");
-            
+
             // Show networks with likely captive portals
             out.println("\n[*] Networks likely to have captive portals:");
             bool foundPortal = false;
@@ -306,19 +309,27 @@ void scanMode() {
                 out.println("    - None detected");
             }
         }
-        
+
+        // Increment scan cycle counter
+        scanCycle++;
+        if (MAX_SCAN_CYCLES > 0 && scanCycle >= MAX_SCAN_CYCLES) {
+            out.printf("\n[✓] Reached maximum scan cycles (%d). Stopping scanner.\n", MAX_SCAN_CYCLES);
+            scanning = false;
+            break;
+        }
+
         out.println("\n[*] Type 'q' to quit scanner, or press Enter to scan again...");
-        
-        // Wait for input with timeout
+
+        // Wait for user input or next scan
         unsigned long startWait = millis();
         bool exitScanner = false;
-        
+
         while (millis() - startWait < SCAN_INTERVAL && !exitScanner) {
             // Handle WebSocket
             if (ENABLE_WEBSOCKET) {
                 wsServer.loop();
             }
-            
+
             // Check Serial
             if (Serial.available() > 0) {
                 char c = Serial.read();
@@ -327,10 +338,10 @@ void scanMode() {
                 }
                 while (Serial.available()) Serial.read(); // Clear buffer
             }
-            
+
             delay(100);
         }
-        
+
         if (exitScanner) {
             scanning = false;
             out.println("\n[*] Exiting scanner mode");

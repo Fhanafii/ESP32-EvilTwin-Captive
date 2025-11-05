@@ -18,8 +18,17 @@ class WiFiScanner {
 public:
     WiFiScanner();
     
-    // Scan for networks
-    int scanNetworks();
+    // Scan for networks (async version)
+    int scanNetworks(bool async = false);
+    
+    // Start async scan
+    void startAsyncScan();
+    
+    // Check if scan is complete
+    bool isScanComplete();
+    
+    // Get scan results (call after isScanComplete returns true)
+    int getScanResults();
     
     // Get network info by index
     NetworkInfo getNetwork(int index);
@@ -33,6 +42,9 @@ public:
     // Print all networks to serial
     void printNetworks();
     
+    // Get scan results as formatted string (for buffering)
+    String getFormattedResults();
+    
     // Get encryption type as string
     String getEncryptionType(uint8_t encType);
     
@@ -44,10 +56,14 @@ public:
 
 private:
     int networkCount;
-    NetworkInfo networks[20]; // Store up to 20 networks
+    NetworkInfo networks[30]; // Store up to 30 networks (increased from 20)
+    bool scanInProgress;
     
     // Helper to convert RSSI to signal quality
     int rssiToQuality(int32_t rssi);
+    
+    // Store scan results internally
+    void storeScanResults();
 };
 
 #endif // WIFI_SCANNER_H

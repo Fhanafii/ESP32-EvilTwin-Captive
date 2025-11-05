@@ -8,7 +8,11 @@
 
 // WiFi Scanner Settings
 #define SCAN_INTERVAL 3000        // Time between scans (ms)
-#define MAX_NETWORKS 20           // Maximum networks to display
+#define MAX_NETWORKS 30           // Maximum networks to display (increased)
+#define SCAN_CHANNEL_TIME 120     // Time per channel in ms (faster = less AP disruption)
+#define SCAN_TYPE_ACTIVE true     // Active scan (sends probe requests)
+#define SCAN_SHOW_HIDDEN true     // Show hidden networks
+#define MAX_SCAN_CYCLES 3        // Auto-quit after N scans (0 = infinite)
 
 // Control AP Settings (ESP32's own WiFi for remote access)
 #define CONTROL_AP_SSID "ESP32-Control"    // Your control AP name
