@@ -279,18 +279,59 @@ void captivePortalMode() {
         return;
     }
 
-    // Ensure WiFi AP mode is active before starting the portal
+    out.println("\n╔══════════════════════════════════════════════════════════════╗");
+    out.println("║                  SELECT CAPTIVE PORTAL TYPE                   ║");
+    out.println("╠══════════════════════════════════════════════════════════════╣");
+    out.println("║                                                              ║");
+    out.println("║  [1] Generic Wi-Fi Portal                                    ║");
+    out.println("║  [2] Hotel Wi-Fi Portal                                      ║");
+    out.println("║  [3] Airport Wi-Fi Portal                                    ║");
+    out.println("║  [4] Coffee Shop Wi-Fi Portal                                ║");
+    out.println("║                                                              ║");
+    out.println("╚══════════════════════════════════════════════════════════════╝");
+    out.print("\nEnter your choice: ");
+
+    // Wait for serial input (simple CLI blocking method)
+    while (!Serial.available()) {
+        delay(100);
+    }
+
+    char typeChoice = Serial.read();
+    int portalType = PORTAL_GENERIC; // default
+
+    switch (typeChoice) {
+        case '1': portalType = PORTAL_GENERIC; break;
+        case '2': portalType = PORTAL_HOTEL; break;
+        case '3': portalType = PORTAL_AIRPORT; break;
+        case '4': portalType = PORTAL_COFFEE; break;
+        default:
+            out.println("\n[-] Invalid choice! Defaulting to Generic Portal.");
+            break;
+    }
+
+    out.println("\n[*] Initializing Captive Portal...");
+    portal.setPortalType(portalType);
+
+    // Ensure WiFi AP mode is active
     if (WiFi.getMode() != WIFI_AP) {
         WiFi.mode(WIFI_AP);
-        WiFi.softAP("ESP32_Captive_Portal"); // Default SSID
+        WiFi.softAP("ESP32_Captive_Portal");
         out.printf("[+] Access Point started: %s\n", WiFi.softAPIP().toString().c_str());
     }
 
-    // Start the captive portal
+    // Start the portal
     portal.begin("ESP32_Captive_Portal");
 
-    out.println("[+] Captive Portal active!");
-    out.printf("[+] Portal URL: http://%s\n", WiFi.softAPIP().toString().c_str());
+    out.println("\n╔══════════════════════════════════════════════════════════════╗");
+    out.println("║                  CAPTIVE PORTAL STARTED                       ║");
+    out.println("╠══════════════════════════════════════════════════════════════╣");
+    out.printf ("║  Portal Type : %-45s ║\n", 
+        (portalType == PORTAL_HOTEL ? "Hotel Wi-Fi" :
+        portalType == PORTAL_AIRPORT ? "Airport Wi-Fi" :
+        portalType == PORTAL_COFFEE ? "Coffee Shop Wi-Fi" :
+        "Generic Wi-Fi"));
+    out.printf ("║  Portal URL  : http://%-37s ║\n", WiFi.softAPIP().toString().c_str());
+    out.println("╚══════════════════════════════════════════════════════════════╝");
 }
 
 void viewCredentials() {
