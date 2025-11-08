@@ -52,7 +52,7 @@ A research-oriented ESP32-based toolkit for WiFi security testing, including evi
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/yourusername/ESP32-EvilTwin-Captive.git
+   git clone https://github.com/Fhanafii/ESP32-EvilTwin-Captive.git
    cd ESP32-EvilTwin-Captive
    ```
 
