@@ -180,7 +180,7 @@ void printBanner() {
     out.println("║                                                                                                   ║");
     out.println("║                      ⚠️  EDUCATIONAL — DO NOT USE ON OTHERS' NETWORKS ⚠️                            ║");
     out.println("║                                                                                                   ║");
-    out.println("║                          Author:./runme             •   Version: 0.1                              ║");
+    out.println("║                          Author:./runme             •   Version: 1.5                              ║");
     out.println("║                                                                                                   ║");
     out.println("╚═══════════════════════════════════════════════════════════════════════════════════════════════════╝");
     out.println("");
