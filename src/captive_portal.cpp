@@ -241,6 +241,11 @@ void CaptivePortal::setPortalHTML(const String& html) {
     portalHTML = html;
 }
 
+void CaptivePortal::useClonedPortal(const String& html) {
+    portalHTML = html;
+    Serial.println("[+] Using cloned portal HTML");
+}
+
 void CaptivePortal::setPortalType(int type) {
     switch(type) {
         case PORTAL_HOTEL:
