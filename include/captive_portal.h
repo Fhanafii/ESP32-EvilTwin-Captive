@@ -45,6 +45,9 @@ public:
     
     // Set custom portal HTML
     void setPortalHTML(const String& html);
+
+    // use cloned portal HTML
+    void useClonedPortal(const String& html);
     
     // Set portal type (generic, hotel, airport, etc.)
     void setPortalType(int type);
