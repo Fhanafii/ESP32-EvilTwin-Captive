@@ -11,7 +11,7 @@
 ║                                      ░ E S P - M I R A G E ░                                      ║
 ║                          ESP32 Captive-Portal Toolkit — Research Only                             ║
 ║                                                                                                   ║
-║                      ⚠️  EDUCATIONAL — DO NOT USE ON OTHERS' NETWORKS ⚠️                            ║
+║                      ⚠️  EDUCATIONAL — DO NOT USE ON OTHERS' NETWORKS ⚠️                          ║
 ║                                                                                                   ║
 ║                          Author:./runme             •   Version: 1.5                              ║
 ║                                                                                                   ║
